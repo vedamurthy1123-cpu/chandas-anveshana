@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanskrit Chandas Detector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(30, 41, 59, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --success: #10b981;
+            --error: #ef4444;
+            --laghu-bg: rgba(59, 130, 246, 0.15);
+            --laghu-border: rgba(59, 130, 246, 0.4);
+            --guru-bg: rgba(239, 68, 68, 0.15);
+            --guru-border: rgba(239, 68, 68, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Background Glow */
+        .ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vw;
+            max-width: 800px;
+            max-height: 800px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.2rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 1.05rem;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 15px var(--primary-glow);
+        }
+
+        .line-counter {
+            position: absolute;
+            bottom: -20px;
+            right: 5px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+        .line-counter.warning { color: var(--error); }
+
+        button.analyze-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        button.analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+        }
+
+        button.analyze-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Results Panel */
+        .result-panel {
+            margin-top: 2rem;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--card-border);
+            display: none;
+            animation: slideUp 0.4s ease forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-panel.visible {
+            display: block;
+        }
+
+        .chandas-result {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .status-success { color: var(--success); }
+        .status-unknown { color: var(--error); }
+
+        .explanation {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Pattern Toggle & Display */
+        .pattern-toggle-wrapper {
+            display: flex;
+            justify-content: center;
+        }
+
+        button.toggle-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button.toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .pattern-display {
+            margin-top: 1.5rem;
+            height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: all 0.4s ease;
+            text-align: center;
+        }
+
+        .pattern-display.expanded {
+            height: auto;
+            opacity: 1;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--card-border);
+        }
+
+        /* Syllable Badges */
+        .badge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .syllable-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .badge-L {
+            background: var(--laghu-bg);
+            border: 1px solid var(--laghu-border);
+            color: #60a5fa;
+        }
+
+        .badge-G {
+            background: var(--guru-bg);
+            border: 1px solid var(--guru-border);
+            color: #f87171;
+        }
+
+        @media (max-width: 480px) {
+            .container { padding: 1.5rem; }
+            h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+
+    <div class="container">
+        <header>
+            <h1>Chandas Identifier</h1>
+            <p class="subtitle">Analyze poetic meter for Anuṣṭubh, Indravajrā, & Upendravajrā</p>
+        </header>
+
+        <div class="input-group">
+            <textarea id="verse-input" rows="4" placeholder="Enter Sanskrit or transliterated verse here...&#10;(Max 4 lines)"></textarea>
+            <div id="line-counter" class="line-counter">Lines: 0 / 4</div>
+        </div>
+
+        <button id="analyze-btn" class="analyze-btn">Analyze Verse</button>
+
+        <div id="result-panel" class="result-panel">
+            <h2 id="chandas-name" class="chandas-result"></h2>
+            <p id="explanation" class="explanation"></p>
+            
+            <div class="pattern-toggle-wrapper">
+                <button id="toggle-pattern" class="toggle-btn">Show Metrical Pattern</button>
+            </div>
+            
+            <div id="pattern-display" class="pattern-display">
+                <!-- Badges will be generated here by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 
+    =====================================================================
+    PYTHON-STYLE PSEUDOCODE / ARCHITECTURE FOR CHANDAS DETECTION
+    =====================================================================
+    
+    def analyze_verse(text):
+        # 1. Validation & Preprocessing
+        lines = text.strip().split("\n")
+        if len(lines) > 4:
+            return "Error: Maximum 4 lines allowed"
+        
+        # 2. Extract pattern sequence (Laghu/Guru)
+        pattern = extract_pattern(text)
+        
+        # 3. Match against known rules
+        result = match_chandas(pattern)
+        return result
+
+    def extract_pattern(text):
+        # Preprocess text (lowercase, normalize long vowels)
+        clean_text = normalize_text(text)
+        
+        vowels = ['a', 'i', 'u', 'ṛ', 'ḷ']
+        long_vowels = ['ā', 'ī', 'ū', 'e', 'o', 'A', 'O'] # A=ai, O=au
+        all_vowels = vowels + long_vowels
+        
+        pattern = ""
+        for index, char in enumerate(clean_text):
+            if char in all_vowels:
+                is_guru = char in long_vowels
+                consonant_count = 0
+                
+                # Predict ahead natively for conjunct consonants
+                lookahead = clean_text[index+1:]
+                for next_char in lookahead:
+                    if is_separator(next_char): 
+                        continue
+                    if next_char in all_vowels:
+                        break
+                    
+                    # It's a consonant
+                    consonant_count += 1
+                    
+                    # Anusvara/Visarga immediately force previous vowel to be long
+                    if next_char in ['M', 'H']: 
+                        consonant_count = 2 
+                        
+                    if consonant_count >= 2:
+                        is_guru = True
+                        break
+                        
+                pattern += "G" if is_guru else "L"
+                
+        return pattern
+
+    def match_chandas(pattern):
+        length = len(pattern)
+        if length == 0: return "Unknown"
+        
+        # Check Anuṣṭubh (8 syllables per pāda)
+        if length % 8 == 0:
+            padas = chunk(pattern, 8)
+            is_match = True
+            for i, p in enumerate(padas):
+                if p[4] != 'L' or p[5] != 'G':
+                    is_match = False
+                
+                # Rule check for odd/even padas
+                is_odd = (i % 2 == 0)
+                if is_odd and p[6] != 'G': is_match = False
+                if not is_odd and p[6] != 'L': is_match = False
+                
+            if is_match: return "Anuṣṭubh"
+
+        # Check Indravajrā / Upendravajrā (11 syllables per pāda)
+        if length % 11 == 0:
+            padas = chunk(pattern, 11)
+            if all(p == "GGLGGLLGLGG" for p in padas):
+                return "Indravajrā"
+            if all(p == "LGLGGLLGLGG" for p in padas):
+                return "Upendravajrā"
+
+        return "Unknown Chandas"
+    ===================================================================== 
+    -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputArea = document.getElementById('verse-input');
+            const lineCounter = document.getElementById('line-counter');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const resultPanel = document.getElementById('result-panel');
+            const chandasName = document.getElementById('chandas-name');
+            const explanation = document.getElementById('explanation');
+            const togglePatternBtn = document.getElementById('toggle-pattern');
+            const patternDisplay = document.getElementById('pattern-display');
+
+            // 1. Input Handling & Validation
+            inputArea.addEventListener('input', function() {
+                let lines = this.value.split('\n');
+                
+                // Restrict to max 4 lines
+                if (lines.length > 4) {
+                    lines = lines.slice(0, 4);
+                    this.value = lines.join('\n');
+                }
+                
+                let count = lines.length;
+                if(this.value.trim() === "") count = 0;
+                
+                lineCounter.textContent = `Lines: ${count} / 4`;
+                if(count === 4) {
+                    lineCounter.classList.add('warning');
+                } else {
+                    lineCounter.classList.remove('warning');
+                }
+            });
+
+            // Toggle Pattern Viewer
+            togglePatternBtn.addEventListener('click', () => {
+                patternDisplay.classList.toggle('expanded');
+                if(patternDisplay.classList.contains('expanded')) {
+                    togglePatternBtn.textContent = "Hide Metrical Pattern";
+                } else {
+                    togglePatternBtn.textContent = "Show Metrical Pattern";
+                }
+            });
+
+            // 2. Syllable Extraction Logic
+            function extractPattern(text) {
+                // First handle standard ITRANS-like uppercases for long vowels/anusvara before toLowerCase
+                let tempText = text;
+                tempText = tempText.replace(/A/g, 'ā')
+                                   .replace(/I/g, 'ī')
+                                   .replace(/U/g, 'ū')
+                                   .replace(/M/g, 'ṃ')
+                                   .replace(/H/g, 'ḥ')
+                                   .replace(/R/g, 'ṛ');
+
+                // Remove standard punctuation and convert to lowercase
+                let cleaned = tempText.toLowerCase().replace(/[.,?!;:|"'\\]/g, ' ');
+
+                // Normalize repeating vowels
+                cleaned = cleaned.replace(/aa/g, 'ā')
+                                 .replace(/ii/g, 'ī')
+                                 .replace(/uu/g, 'ū');
+                
+                // Replace diphthongs with single chars for iteration ease
+                cleaned = cleaned.replace(/ai/g, 'E')
+                                 .replace(/au/g, 'O');
+
+                // Collapse aspirated consonants so 'h' doesn't count as a second consonant
+                const aspirates = ['kh','gh','ch','jh','ṭh','ḍh','th','dh','ph','bh','sh'];
+                for (let asp of aspirates) {
+                    cleaned = cleaned.replaceAll(asp, 'C'); 
+                }
+
+                const vowels = ['a','i','u','ṛ','ḷ'];
+                const longVowels = ['ā','ī','ū','e','o','E','O'];
+                const allVowels = [...vowels, ...longVowels];
+
+                let pattern = "";
+
+                for (let i = 0; i < cleaned.length; i++) {
+                    let char = cleaned[i];
+                    
+                    if (allVowels.includes(char)) {
+                        let isGuru = longVowels.includes(char);
+                        let consonantsFound = 0;
+
+                        // Lookahead to check following consonants natively
+                        for (let j = i + 1; j < cleaned.length; j++) {
+                            let nextChar = cleaned[j];
+                            
+                            // Ignore spaces between words to maintain cross-word sandhi/weight rules
+                            if (nextChar === ' ' || nextChar === '-' || nextChar === '\n') {
+                                continue;
+                            }
+                            
+                            // If next character is a vowel, stop looking
+                            if (allVowels.includes(nextChar)) {
+                                break;
+                            }
+
+                            // It's a consonant
+                            consonantsFound++;
+                            
+                            // Anusvara or Visarga force the vowel to become Guru directly
+                            if (nextChar === 'ṃ' || nextChar === 'ḥ') {
+                                consonantsFound = 2; // definite guru
+                            } else if (nextChar === 'm' || nextChar === 'h') {
+                                // check if it acts as word ending (basic heuristic: no valid characters left before space)
+                                let isWordEnd = true;
+                                for(let k = j + 1; k < cleaned.length; k++) {
+                                    if(cleaned[k] !== ' ' && cleaned[k] !== '\n') {
+                                        isWordEnd = false; 
+                                        break;
+                                    }
+                                }
+                                if(isWordEnd) consonantsFound = 2;
+                            }
+
+                            if (consonantsFound >= 2) {
+                                break;
+                            }
+                        }
+
+                        if (consonantsFound >= 2) {
+                            isGuru = true;
+                        }
+
+                        pattern += isGuru ? "G" : "L";
+                    }
+                }
+                return pattern;
+            }
+
+            // 3. Matching System
+            function matchChandas(pattern) {
+                if (pattern.length === 0) {
+                    return { root: "Unknown", desc: "No valid syllables detected.", normalizedPattern: pattern };
+                }
+
+                // Anuṣṭubh Check (8-syllable chunks)
+                if (pattern.length % 8 === 0) {
+                    let padas = [];
+                    for(let i=0; i<pattern.length; i+=8) padas.push(pattern.slice(i, i+8));
+                    
+                    let isAnustubh = true;
+                    for (let i = 0; i < padas.length; i++) {
+                        let p = padas[i];
+                        // Anuṣṭubh rule: 5th is L, 6th is G
+                        if (p[4] !== 'L' || p[5] !== 'G') isAnustubh = false;
+
+                        let isValidOdd = (p[6] === 'G');
+                        let isValidEven = (p[6] === 'L');
+
+                        // Strict odd/even validation
+                        if (padas.length === 1) {
+                            if (!isValidOdd && !isValidEven) isAnustubh = false;
+                        } else {
+                            let isOddPada = (i % 2 === 0);
+                            if (isOddPada && !isValidOdd) isAnustubh = false;
+                            if (!isOddPada && !isValidEven) isAnustubh = false;
+                        }
+                    }
+
+                    if (isAnustubh) {
+                        return { 
+                            root: "Anuṣṭubh", 
+                            desc: `Matched 8-syllable pādas (${padas.length} lines). 5th=L, 6th=G, 7th follows odd/even rule.`,
+                            normalizedPattern: pattern
+                        };
+                    }
+                }
+
+                // Indravajrā / Upendravajrā Check (11-syllable chunks)
+                if (pattern.length % 11 === 0) {
+                    let padas = [];
+                    let normalizedFullPattern = "";
+
+                    for(let i=0; i<pattern.length; i+=11) {
+                        // The last syllable (11th) of a pāda is technically always allowed to be Guru
+                        // under pingala rules (padante go vikalpena), we normalize it to match classical pattern.
+                        let pada = pattern.slice(i, i+10) + 'G';
+                        padas.push(pada);
+                        normalizedFullPattern += pada;
+                    }
+
+                    const INDRA = "GGLGGLLGLGG";
+                    const UPENDRA = "LGLGGLLGLGG";
+                    
+                    let isIndra = true;
+                    let isUpendra = true;
+
+                    for (let p of padas) {
+                        if (p !== INDRA) isIndra = false;
+                        if (p !== UPENDRA) isUpendra = false;
+                    }
+
+                    if (isIndra) {
+                        return { 
+                            root: "Indravajrā", 
+                            desc: `Strict match 11-syllable pattern (${padas.length} lines): G G L G G L L G L G G.`,
+                            normalizedPattern: normalizedFullPattern
+                        };
+                    }
+                    if (isUpendra) {
+                        return { 
+                            root: "Upendravajrā", 
+                            desc: `Strict match 11-syllable pattern (${padas.length} lines): L G L G G L L G L G G.`,
+                            normalizedPattern: normalizedFullPattern
+                        };
+                    }
+                }
+
+                return { 
+                    root: "Unknown", 
+                    desc: `No match found. Detected ${pattern.length} syllables unsupported by strict rules.`,
+                    normalizedPattern: pattern
+                };
+            }
+
+            // Render Output Visuals
+            function renderBadges(pattern) {
+                patternDisplay.innerHTML = '';
+                
+                // Group badges by chunks if it matches 8 or 11 cleanly
+                let chunkSize = pattern.length;
+                if (pattern.length > 0 && pattern.length % 11 === 0) chunkSize = 11;
+                else if (pattern.length > 0 && pattern.length % 8 === 0) chunkSize = 8;
+                
+                let padas = [];
+                for(let i=0; i<pattern.length; i+=chunkSize) padas.push(pattern.slice(i, i+chunkSize));
+
+                padas.forEach(p => {
+                    const row = document.createElement('div');
+                    row.className = 'badge-container';
+                    for(let char of p) {
+                        const span = document.createElement('span');
+                        span.className = `syllable-badge badge-${char}`;
+                        span.textContent = char;
+                        row.appendChild(span);
+                    }
+                    patternDisplay.appendChild(row);
+                });
+            }
+
+            // Analyze Trigger
+            analyzeBtn.addEventListener('click', () => {
+                const text = inputArea.value.trim();
+                
+                // Hide panel temporarily for re-triggering animation
+                resultPanel.classList.remove('visible');
+                
+                // Allow browser reflow
+                setTimeout(() => {
+                    const pattern = extractPattern(text);
+                    const result = matchChandas(pattern);
+
+                    // Setup Results
+                    if (result.root === "Unknown") {
+                        chandasName.innerHTML = `<span class="status-unknown">Unknown Chandas</span>`;
+                    } else {
+                        chandasName.innerHTML = `<span class="status-success">${result.root}</span>`;
+                    }
+                    
+                    explanation.textContent = result.desc;
+                    renderBadges(result.normalizedPattern);
+                    
+                    // Show Panel
+                    resultPanel.classList.add('visible');
+                    
+                    // Reset toggler text
+                    if(patternDisplay.classList.contains('expanded')) {
+                        togglePatternBtn.textContent = "Hide Metrical Pattern";
+                    } else {
+                        togglePatternBtn.textContent = "Show Metrical Pattern";
+                    }
+
+                }, 50);
+            });
+        });
+    </script>
+</body>
+</html>
